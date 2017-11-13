@@ -76,6 +76,38 @@ __m256 a2m_cosf(__m256 x);
 void a2m_sincosf(__m256 x, __m256 *s, __m256 *c);
 void a2m_cisf(__m256 x, __m256 p[2]);
 
+__attribute__((always_inline)) static inline
+void a2m_storeu(__m256 *p, __m256 v)
+{
+    // GCC somehow lowers _mm256_storeu_ps to two stores of 16 bytes per 32bit register.
+    asm ("vmovups %0, %1": : "x"(v), "m"(*p));
+}
+
+// Convert a float x8 vector of real part and a float x8 vector of imaginary part
+// to two float complex x4 vectors.
+__attribute__((always_inline)) static inline
+void a2m_pack_complexf(__m256 r, __m256 i, __m256 *lo, __m256 *hi)
+{
+    // input:
+    // r = |r7|r6|r5|r4|r3|r2|r1|r0|
+    // i = |i7|i6|i5|i4|i3|i2|i1|i0|
+    // goal:
+    // *lo = |i3|r3|i2|r2|i1|r1|i0|r0|
+    // *hi = |i7|r7|i6|r6|i5|r4|i4|r4|
+    // unpacklo and unpackhi almost does that except that it works on 128bit lane
+    // instead of the whole 256bit vector.
+    // Therefore we need to do cross lane shuffle first before using them.
+    // The correct input vectors for them are
+    // r' = |r7|r6|r3|r2|r5|r4|r1|r0|
+    // i' = |i7|i6|i3|i2|i5|i4|i1|i0|
+    // so we can achieve that with one 64bit shuffle on each vector.
+    // The mask for the shuffle is [3, 1, 2, 0] or 0b11011000 or 0xd8
+    r = (__m256)_mm256_permute4x64_pd((__m256d)r, 0xd8);
+    i = (__m256)_mm256_permute4x64_pd((__m256d)i, 0xd8);
+    *lo = _mm256_unpacklo_ps(r, i);
+    *hi = _mm256_unpackhi_ps(r, i);
+}
+
 // sincos and cis are also given below as inlined function to help avoid
 // going through memory for the return values.
 
@@ -179,8 +211,7 @@ __attribute__((always_inline)) static inline void a2m_cisf_(__m256 x, __m256 p[2
 {
     __m256 s, c;
     a2m_sincosf_(x, &s, &c);
-    p[0] = _mm256_unpacklo_ps(c, s);
-    p[1] = _mm256_unpackhi_ps(c, s);
+    a2m_pack_complexf(c, s, &p[0], &p[1]);
 }
 
 #ifdef __cplusplus

@@ -377,12 +377,18 @@ v8sf a2m_cosf(v8sf x) // any x
     return y;
 }
 
-void a2m_sincosf(v8sf x, v8sf *s, v8sf *c)
+void a2m_sincosf(v8sf x, v8sf *ps, v8sf *pc)
 {
-    a2m_sincosf_(x, s, c);
+    v8sf s, c;
+    a2m_sincosf_(x, &s, &c);
+    a2m_storeu(ps, s);
+    a2m_storeu(pc, c);
 }
 
 void a2m_cisf(v8sf x, v8sf p[2])
 {
-    a2m_cisf_(x, p);
+    v8sf v2[2];
+    a2m_cisf_(x, v2);
+    a2m_storeu(&p[0], v2[0]);
+    a2m_storeu(&p[1], v2[1]);
 }
