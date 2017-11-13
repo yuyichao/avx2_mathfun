@@ -37,7 +37,6 @@ typedef __m256i v8si; // vector of 8 int   (avx)
 
 /* the smallest non denormalized float number */
 A2M_PS256_CONST_TYPE(min_norm_pos, int, 0x00800000);
-A2M_PS256_CONST_TYPE(mant_mask, int, 0x7f800000);
 A2M_PS256_CONST_TYPE(inv_mant_mask, int, ~0x7f800000);
 
 A2M_PI32_CONST256(0x7f, 0x7f);
