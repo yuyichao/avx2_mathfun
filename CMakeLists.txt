@@ -12,6 +12,7 @@ set_target_properties(avx2_mathfun PROPERTIES
   VERSION 0.1
   SOVERSION 0)
 install(TARGETS avx2_mathfun DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(FILES avx2_mathfun.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 set(MAJOR_VERSION 0)
 set(MINOR_VERSION 1)
