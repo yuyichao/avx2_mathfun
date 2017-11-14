@@ -3,8 +3,8 @@ project(avx2_mathfun)
 
 include(GNUInstallDirs)
 
-set(MAJOR_VERSION 0)
-set(MINOR_VERSION 1)
+set(MAJOR_VERSION 1)
+set(MINOR_VERSION 0)
 set(PATCH_VERSION 0)
 
 set(INSTALL_PKGCONFIG_DIR "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig"
