@@ -38,11 +38,15 @@
 extern "C" {
 #endif
 
+// Aligned and can't alias
+typedef float a2m_v8sf __attribute__((__vector_size__(32)));
+typedef int a2m_v8si __attribute__((__vector_size__(32)));
+
 /* declare some AVX constants -- why can't I figure a better way to do that? */
-#define A2M_PS256_CONST(Name, Val)                                         \
-    static const float a2m_ps256_##Name[8] __attribute__((aligned(32))) = { Val, Val, Val, Val, Val, Val, Val, Val }
-#define A2M_PI32_CONST256(Name, Val)                                       \
-    static const int a2m_pi256_##Name[8] __attribute__((aligned(32))) = { Val, Val, Val, Val, Val, Val, Val, Val }
+#define A2M_PS256_CONST(Name, Val)                                      \
+    static const a2m_v8sf a2m_ps256_##Name __attribute__((aligned(32))) = { Val, Val, Val, Val, Val, Val, Val, Val }
+#define A2M_PI32_CONST256(Name, Val)                                    \
+    static const __m256i a2m_pi256_##Name __attribute__((aligned(32))) = (__m256i)(a2m_v8si){ Val, Val, Val, Val, Val, Val, Val, Val }
 
 A2M_PS256_CONST(1, 1.0f);
 A2M_PS256_CONST(0p5, 0.5f);
@@ -122,38 +126,38 @@ __attribute__((always_inline)) static inline void a2m_sincosf_(__m256 x, __m256 
 
     sign_bit_sin = x;
     /* take the absolute value */
-    x = _mm256_and_ps(x, *(__m256*)a2m_pi256_inv_sign_mask);
+    x = _mm256_and_ps(x, (__m256)a2m_pi256_inv_sign_mask);
     /* extract the sign bit (upper one) */
-    sign_bit_sin = _mm256_and_ps(sign_bit_sin, *(__m256*)a2m_pi256_sign_mask);
+    sign_bit_sin = _mm256_and_ps(sign_bit_sin, (__m256)a2m_pi256_sign_mask);
 
     /* scale by 4/Pi */
-    y = _mm256_mul_ps(x, *(__m256*)a2m_ps256_cephes_FOPI);
+    y = _mm256_mul_ps(x, a2m_ps256_cephes_FOPI);
 
     /* store the integer part of y in imm2 */
     imm2 = _mm256_cvttps_epi32(y);
 
     /* j=(j+1) & (~1) (see the cephes sources) */
-    imm2 = _mm256_add_epi32(imm2, *(__m256i*)a2m_pi256_1);
-    imm2 = _mm256_and_si256(imm2, *(__m256i*)a2m_pi256_inv1);
+    imm2 = _mm256_add_epi32(imm2, a2m_pi256_1);
+    imm2 = _mm256_and_si256(imm2, a2m_pi256_inv1);
 
     y = _mm256_cvtepi32_ps(imm2);
     imm4 = imm2;
 
     /* get the swap sign flag for the sine */
-    imm0 = _mm256_and_si256(imm2, *(__m256i*)a2m_pi256_4);
+    imm0 = _mm256_and_si256(imm2, a2m_pi256_4);
     imm0 = _mm256_slli_epi32(imm0, 29);
     __m256 swap_sign_bit_sin = (__m256)imm0;
 
     /* get the polynom selection mask for the sine*/
-    imm2 = _mm256_and_si256(imm2, *(__m256i*)a2m_pi256_2);
-    imm2 = _mm256_cmpeq_epi32(imm2, *(__m256i*)a2m_pi256_0);
+    imm2 = _mm256_and_si256(imm2, a2m_pi256_2);
+    imm2 = _mm256_cmpeq_epi32(imm2, a2m_pi256_0);
     __m256 poly_mask = (__m256)imm2;
 
     /* The magic pass: "Extended precision modular arithmetic"
        x = ((x - y * DP1) - y * DP2) - y * DP3; */
-    xmm1 = *(__m256*)a2m_ps256_minus_cephes_DP1;
-    xmm2 = *(__m256*)a2m_ps256_minus_cephes_DP2;
-    xmm3 = *(__m256*)a2m_ps256_minus_cephes_DP3;
+    xmm1 = a2m_ps256_minus_cephes_DP1;
+    xmm2 = a2m_ps256_minus_cephes_DP2;
+    xmm3 = a2m_ps256_minus_cephes_DP3;
     xmm1 = _mm256_mul_ps(y, xmm1);
     xmm2 = _mm256_mul_ps(y, xmm2);
     xmm3 = _mm256_mul_ps(y, xmm3);
@@ -161,8 +165,8 @@ __attribute__((always_inline)) static inline void a2m_sincosf_(__m256 x, __m256 
     x = _mm256_add_ps(x, xmm2);
     x = _mm256_add_ps(x, xmm3);
 
-    imm4 = _mm256_sub_epi32(imm4, *(__m256i*)a2m_pi256_2);
-    imm4 = _mm256_andnot_si256(imm4, *(__m256i*)a2m_pi256_4);
+    imm4 = _mm256_sub_epi32(imm4, a2m_pi256_2);
+    imm4 = _mm256_andnot_si256(imm4, a2m_pi256_4);
     imm4 = _mm256_slli_epi32(imm4, 29);
 
     __m256 sign_bit_cos = (__m256)imm4;
@@ -171,25 +175,25 @@ __attribute__((always_inline)) static inline void a2m_sincosf_(__m256 x, __m256 
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
     __m256 z = _mm256_mul_ps(x,x);
-    y = *(__m256*)a2m_ps256_coscof_p0;
+    y = a2m_ps256_coscof_p0;
 
     y = _mm256_mul_ps(y, z);
-    y = _mm256_add_ps(y, *(__m256*)a2m_ps256_coscof_p1);
+    y = _mm256_add_ps(y, a2m_ps256_coscof_p1);
     y = _mm256_mul_ps(y, z);
-    y = _mm256_add_ps(y, *(__m256*)a2m_ps256_coscof_p2);
+    y = _mm256_add_ps(y, a2m_ps256_coscof_p2);
     y = _mm256_mul_ps(y, z);
     y = _mm256_mul_ps(y, z);
-    __m256 tmp = _mm256_mul_ps(z, *(__m256*)a2m_ps256_0p5);
+    __m256 tmp = _mm256_mul_ps(z, a2m_ps256_0p5);
     y = _mm256_sub_ps(y, tmp);
-    y = _mm256_add_ps(y, *(__m256*)a2m_ps256_1);
+    y = _mm256_add_ps(y, a2m_ps256_1);
 
     /* Evaluate the second polynom  (Pi/4 <= x <= 0) */
 
-    __m256 y2 = *(__m256*)a2m_ps256_sincof_p0;
+    __m256 y2 = a2m_ps256_sincof_p0;
     y2 = _mm256_mul_ps(y2, z);
-    y2 = _mm256_add_ps(y2, *(__m256*)a2m_ps256_sincof_p1);
+    y2 = _mm256_add_ps(y2, a2m_ps256_sincof_p1);
     y2 = _mm256_mul_ps(y2, z);
-    y2 = _mm256_add_ps(y2, *(__m256*)a2m_ps256_sincof_p2);
+    y2 = _mm256_add_ps(y2, a2m_ps256_sincof_p2);
     y2 = _mm256_mul_ps(y2, z);
     y2 = _mm256_mul_ps(y2, x);
     y2 = _mm256_add_ps(y2, x);
