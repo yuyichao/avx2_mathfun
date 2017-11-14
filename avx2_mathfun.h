@@ -43,10 +43,17 @@ typedef float a2m_v8sf __attribute__((__vector_size__(32)));
 typedef int a2m_v8si __attribute__((__vector_size__(32)));
 
 /* declare some AVX constants -- why can't I figure a better way to do that? */
+#ifdef __cplusplus
+#define A2M_PS256_CONST(Name, Val)                                      \
+    static constexpr a2m_v8sf a2m_ps256_##Name __attribute__((aligned(32))) = { Val, Val, Val, Val, Val, Val, Val, Val }
+#define A2M_PI32_CONST256(Name, Val)                                    \
+    static constexpr __m256i a2m_pi256_##Name __attribute__((aligned(32))) = (__m256i)(a2m_v8si){ Val, Val, Val, Val, Val, Val, Val, Val }
+#else
 #define A2M_PS256_CONST(Name, Val)                                      \
     static const a2m_v8sf a2m_ps256_##Name __attribute__((aligned(32))) = { Val, Val, Val, Val, Val, Val, Val, Val }
 #define A2M_PI32_CONST256(Name, Val)                                    \
     static const __m256i a2m_pi256_##Name __attribute__((aligned(32))) = (__m256i)(a2m_v8si){ Val, Val, Val, Val, Val, Val, Val, Val }
+#endif
 
 A2M_PS256_CONST(1, 1.0f);
 A2M_PS256_CONST(0p5, 0.5f);
@@ -121,30 +128,27 @@ void a2m_pack_complexf(__m256 r, __m256 i, __m256 *lo, __m256 *hi)
    it is almost as fast, and gives you a free cosine with your sine */
 __attribute__((always_inline)) static inline void a2m_sincosf_(__m256 x, __m256 *s, __m256 *c)
 {
-    __m256 xmm1, xmm2, xmm3 = _mm256_setzero_ps(), sign_bit_sin, y;
-    __m256i imm0, imm2, imm4;
-
-    sign_bit_sin = x;
+    __m256 sign_bit_sin = x;
     /* take the absolute value */
     x = _mm256_and_ps(x, (__m256)a2m_pi256_inv_sign_mask);
     /* extract the sign bit (upper one) */
     sign_bit_sin = _mm256_and_ps(sign_bit_sin, (__m256)a2m_pi256_sign_mask);
 
     /* scale by 4/Pi */
-    y = _mm256_mul_ps(x, a2m_ps256_cephes_FOPI);
+    __m256 y = _mm256_mul_ps(x, a2m_ps256_cephes_FOPI);
 
     /* store the integer part of y in imm2 */
-    imm2 = _mm256_cvttps_epi32(y);
+    __m256i imm2 = _mm256_cvttps_epi32(y);
 
     /* j=(j+1) & (~1) (see the cephes sources) */
     imm2 = _mm256_add_epi32(imm2, a2m_pi256_1);
     imm2 = _mm256_and_si256(imm2, a2m_pi256_inv1);
 
     y = _mm256_cvtepi32_ps(imm2);
-    imm4 = imm2;
+    __m256i imm4 = imm2;
 
     /* get the swap sign flag for the sine */
-    imm0 = _mm256_and_si256(imm2, a2m_pi256_4);
+    __m256i imm0 = _mm256_and_si256(imm2, a2m_pi256_4);
     imm0 = _mm256_slli_epi32(imm0, 29);
     __m256 swap_sign_bit_sin = (__m256)imm0;
 
@@ -155,15 +159,9 @@ __attribute__((always_inline)) static inline void a2m_sincosf_(__m256 x, __m256 
 
     /* The magic pass: "Extended precision modular arithmetic"
        x = ((x - y * DP1) - y * DP2) - y * DP3; */
-    xmm1 = a2m_ps256_minus_cephes_DP1;
-    xmm2 = a2m_ps256_minus_cephes_DP2;
-    xmm3 = a2m_ps256_minus_cephes_DP3;
-    xmm1 = _mm256_mul_ps(y, xmm1);
-    xmm2 = _mm256_mul_ps(y, xmm2);
-    xmm3 = _mm256_mul_ps(y, xmm3);
-    x = _mm256_add_ps(x, xmm1);
-    x = _mm256_add_ps(x, xmm2);
-    x = _mm256_add_ps(x, xmm3);
+    x = _mm256_add_ps(x, _mm256_mul_ps(y, a2m_ps256_minus_cephes_DP1));
+    x = _mm256_add_ps(x, _mm256_mul_ps(y, a2m_ps256_minus_cephes_DP2));
+    x = _mm256_add_ps(x, _mm256_mul_ps(y, a2m_ps256_minus_cephes_DP3));
 
     imm4 = _mm256_sub_epi32(imm4, a2m_pi256_2);
     imm4 = _mm256_andnot_si256(imm4, a2m_pi256_4);
@@ -174,23 +172,20 @@ __attribute__((always_inline)) static inline void a2m_sincosf_(__m256 x, __m256 
     sign_bit_sin = _mm256_xor_ps(sign_bit_sin, swap_sign_bit_sin);
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
-    __m256 z = _mm256_mul_ps(x,x);
-    y = a2m_ps256_coscof_p0;
+    __m256 z = _mm256_mul_ps(x, x);
 
-    y = _mm256_mul_ps(y, z);
+    y = _mm256_mul_ps(a2m_ps256_coscof_p0, z);
     y = _mm256_add_ps(y, a2m_ps256_coscof_p1);
     y = _mm256_mul_ps(y, z);
     y = _mm256_add_ps(y, a2m_ps256_coscof_p2);
     y = _mm256_mul_ps(y, z);
     y = _mm256_mul_ps(y, z);
-    __m256 tmp = _mm256_mul_ps(z, a2m_ps256_0p5);
-    y = _mm256_sub_ps(y, tmp);
+    y = _mm256_sub_ps(y, _mm256_mul_ps(z, a2m_ps256_0p5));
     y = _mm256_add_ps(y, a2m_ps256_1);
 
     /* Evaluate the second polynom  (Pi/4 <= x <= 0) */
 
-    __m256 y2 = a2m_ps256_sincof_p0;
-    y2 = _mm256_mul_ps(y2, z);
+    __m256 y2 = _mm256_mul_ps(a2m_ps256_sincof_p0, z);
     y2 = _mm256_add_ps(y2, a2m_ps256_sincof_p1);
     y2 = _mm256_mul_ps(y2, z);
     y2 = _mm256_add_ps(y2, a2m_ps256_sincof_p2);
@@ -199,18 +194,14 @@ __attribute__((always_inline)) static inline void a2m_sincosf_(__m256 x, __m256 
     y2 = _mm256_add_ps(y2, x);
 
     /* select the correct result from the two polynoms */
-    xmm3 = poly_mask;
-    __m256 ysin2 = _mm256_and_ps(xmm3, y2);
-    __m256 ysin1 = _mm256_andnot_ps(xmm3, y);
-    y2 = _mm256_sub_ps(y2,ysin2);
+    __m256 ysin2 = _mm256_and_ps(poly_mask, y2);
+    __m256 ysin1 = _mm256_andnot_ps(poly_mask, y);
+    y2 = _mm256_sub_ps(y2, ysin2);
     y = _mm256_sub_ps(y, ysin1);
 
-    xmm1 = _mm256_add_ps(ysin1,ysin2);
-    xmm2 = _mm256_add_ps(y,y2);
-
     /* update the sign */
-    *s = _mm256_xor_ps(xmm1, sign_bit_sin);
-    *c = _mm256_xor_ps(xmm2, sign_bit_cos);
+    *s = _mm256_xor_ps(_mm256_add_ps(ysin1, ysin2), sign_bit_sin);
+    *c = _mm256_xor_ps(_mm256_add_ps(y, y2), sign_bit_cos);
 }
 
 __attribute__((always_inline)) static inline void a2m_cisf_(__m256 x, __m256 p[2])
