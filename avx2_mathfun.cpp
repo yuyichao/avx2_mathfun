@@ -207,7 +207,6 @@ v8sf a2m_sinf(v8sf x) // any x
     /*
       Here we start a series of integer operations, which are in the
       realm of AVX2.
-      If we don't have AVX, let's perform them using SSE2 directives
     */
 
     /* store the integer part of y in mm0 */
@@ -241,10 +240,9 @@ v8sf a2m_sinf(v8sf x) // any x
     x = _mm256_add_ps(x, _mm256_mul_ps(y, a2m_ps256_minus_cephes_DP3));
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
-    y = a2m_ps256_coscof_p0;
     v8sf z = _mm256_mul_ps(x, x);
 
-    y = _mm256_mul_ps(y, z);
+    y = _mm256_mul_ps(a2m_ps256_coscof_p0, z);
     y = _mm256_add_ps(y, a2m_ps256_coscof_p1);
     y = _mm256_mul_ps(y, z);
     y = _mm256_add_ps(y, a2m_ps256_coscof_p2);
