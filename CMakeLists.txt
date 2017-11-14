@@ -3,20 +3,26 @@ project(avx2_mathfun)
 
 include(GNUInstallDirs)
 
+set(MAJOR_VERSION 0)
+set(MINOR_VERSION 1)
+set(PATCH_VERSION 0)
+
+set(INSTALL_PKGCONFIG_DIR "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig"
+  CACHE PATH "Installation directory for pkgconfig (.pc) files")
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 set(SOURCE_FILES avx2_mathfun.cpp)
 add_library(avx2_mathfun SHARED ${SOURCE_FILES})
 set_target_properties(avx2_mathfun PROPERTIES
   COMPILE_FLAGS "-mavx2 -mfma -ffast-math"
-  VERSION 0.1
-  SOVERSION 0)
+  VERSION ${MAJOR_VERSION}.${MINOR_VERSION}
+  SOVERSION ${MAJOR_VERSION})
+configure_file(avx2_mathfun.pc.in avx2_mathfun.pc @ONLY)
 install(TARGETS avx2_mathfun DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES avx2_mathfun.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-set(MAJOR_VERSION 0)
-set(MINOR_VERSION 1)
-set(PATCH_VERSION 0)
+install(FILES ${CMAKE_BINARY_DIR}/avx2_mathfun.pc
+  DESTINATION ${INSTALL_PKGCONFIG_DIR})
 
 if(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
   include(InstallRequiredSystemLibraries)

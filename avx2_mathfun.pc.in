@@ -1,0 +1,12 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=@CMAKE_INSTALL_PREFIX@
+libdir=@CMAKE_INSTALL_FULL_LIBDIR@
+includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
+
+Name: avx2_mathfun
+Description: AVX2 math library
+Version: @MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@
+
+Requires:
+Libs: -L${libdir} -lavx2_mathfun
+Cflags: -I${includedir}
