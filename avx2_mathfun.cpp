@@ -36,8 +36,8 @@ typedef __m256  v8sf; // vector of 8 float (avx)
 typedef __m256i v8si; // vector of 8 int   (avx)
 
 /* the smallest non denormalized float number */
-A2M_PS256_CONST_TYPE(min_norm_pos, int, 0x00800000);
-A2M_PS256_CONST_TYPE(inv_mant_mask, int, ~0x7f800000);
+A2M_PI32_CONST256(min_norm_pos, 0x00800000);
+A2M_PI32_CONST256(inv_mant_mask, ~0x7f800000);
 
 A2M_PI32_CONST256(0x7f, 0x7f);
 
@@ -63,17 +63,17 @@ v8sf a2m_logf(v8sf x)
 
     v8sf invalid_mask = _mm256_cmp_ps(x, _mm256_setzero_ps(), _CMP_LE_OS);
 
-    x = _mm256_max_ps(x, *(v8sf*)a2m_ps256_min_norm_pos);  /* cut off denormalized stuff */
+    x = _mm256_max_ps(x, *(v8sf*)a2m_pi256_min_norm_pos);  /* cut off denormalized stuff */
 
     // can be done with AVX2
     imm0 = _mm256_srli_epi32((v8si)x, 23);
 
     /* keep only the fractional part */
-    x = _mm256_and_ps(x, *(v8sf*)a2m_ps256_inv_mant_mask);
+    x = _mm256_and_ps(x, *(v8sf*)a2m_pi256_inv_mant_mask);
     x = _mm256_or_ps(x, *(v8sf*)a2m_ps256_0p5);
 
     // this is again another AVX2 instruction
-    imm0 = _mm256_sub_epi32(imm0, *(v8si*)a2m_pi32_256_0x7f);
+    imm0 = _mm256_sub_epi32(imm0, *(v8si*)a2m_pi256_0x7f);
     v8sf e = _mm256_cvtepi32_ps(imm0);
 
     e = _mm256_add_ps(e, one);
@@ -190,7 +190,7 @@ v8sf a2m_expf(v8sf x)
     /* build 2^n */
     imm0 = _mm256_cvttps_epi32(fx);
     // another two AVX2 instructions
-    imm0 = _mm256_add_epi32(imm0, *(v8si*)a2m_pi32_256_0x7f);
+    imm0 = _mm256_add_epi32(imm0, *(v8si*)a2m_pi256_0x7f);
     imm0 = _mm256_slli_epi32(imm0, 23);
     y = _mm256_mul_ps(y, (v8sf)imm0);
     return y;
@@ -213,9 +213,9 @@ v8sf a2m_sinf(v8sf x) // any x
 
     sign_bit = x;
     /* take the absolute value */
-    x = _mm256_and_ps(x, *(v8sf*)a2m_ps256_inv_sign_mask);
+    x = _mm256_and_ps(x, *(v8sf*)a2m_pi256_inv_sign_mask);
     /* extract the sign bit (upper one) */
-    sign_bit = _mm256_and_ps(sign_bit, *(v8sf*)a2m_ps256_sign_mask);
+    sign_bit = _mm256_and_ps(sign_bit, *(v8sf*)a2m_pi256_sign_mask);
 
     /* scale by 4/Pi */
     y = _mm256_mul_ps(x, *(v8sf*)a2m_ps256_cephes_FOPI);
@@ -230,12 +230,12 @@ v8sf a2m_sinf(v8sf x) // any x
     imm2 = _mm256_cvttps_epi32(y);
     /* j=(j+1) & (~1) (see the cephes sources) */
     // another two AVX2 instruction
-    imm2 = _mm256_add_epi32(imm2, *(v8si*)a2m_pi32_256_1);
-    imm2 = _mm256_and_si256(imm2, *(v8si*)a2m_pi32_256_inv1);
+    imm2 = _mm256_add_epi32(imm2, *(v8si*)a2m_pi256_1);
+    imm2 = _mm256_and_si256(imm2, *(v8si*)a2m_pi256_inv1);
     y = _mm256_cvtepi32_ps(imm2);
 
     /* get the swap sign flag */
-    imm0 = _mm256_and_si256(imm2, *(v8si*)a2m_pi32_256_4);
+    imm0 = _mm256_and_si256(imm2, *(v8si*)a2m_pi256_4);
     imm0 = _mm256_slli_epi32(imm0, 29);
     /* get the polynom selection mask
        there is one polynom for 0 <= x <= Pi/4
@@ -243,8 +243,8 @@ v8sf a2m_sinf(v8sf x) // any x
 
        Both branches will be computed.
     */
-    imm2 = _mm256_and_si256(imm2, *(v8si*)a2m_pi32_256_2);
-    imm2 = _mm256_cmpeq_epi32(imm2,*(v8si*)a2m_pi32_256_0);
+    imm2 = _mm256_and_si256(imm2, *(v8si*)a2m_pi256_2);
+    imm2 = _mm256_cmpeq_epi32(imm2,*(v8si*)a2m_pi256_0);
 
     v8sf swap_sign_bit = (v8sf)imm0;
     v8sf poly_mask = (v8sf)imm2;
@@ -305,7 +305,7 @@ v8sf a2m_cosf(v8sf x) // any x
     v8si imm0, imm2;
 
     /* take the absolute value */
-    x = _mm256_and_ps(x, *(v8sf*)a2m_ps256_inv_sign_mask);
+    x = _mm256_and_ps(x, *(v8sf*)a2m_pi256_inv_sign_mask);
 
     /* scale by 4/Pi */
     y = _mm256_mul_ps(x, *(v8sf*)a2m_ps256_cephes_FOPI);
@@ -313,17 +313,17 @@ v8sf a2m_cosf(v8sf x) // any x
     /* store the integer part of y in mm0 */
     imm2 = _mm256_cvttps_epi32(y);
     /* j=(j+1) & (~1) (see the cephes sources) */
-    imm2 = _mm256_add_epi32(imm2, *(v8si*)a2m_pi32_256_1);
-    imm2 = _mm256_and_si256(imm2, *(v8si*)a2m_pi32_256_inv1);
+    imm2 = _mm256_add_epi32(imm2, *(v8si*)a2m_pi256_1);
+    imm2 = _mm256_and_si256(imm2, *(v8si*)a2m_pi256_inv1);
     y = _mm256_cvtepi32_ps(imm2);
-    imm2 = _mm256_sub_epi32(imm2, *(v8si*)a2m_pi32_256_2);
+    imm2 = _mm256_sub_epi32(imm2, *(v8si*)a2m_pi256_2);
 
     /* get the swap sign flag */
-    imm0 = _mm256_andnot_si256(imm2, *(v8si*)a2m_pi32_256_4);
+    imm0 = _mm256_andnot_si256(imm2, *(v8si*)a2m_pi256_4);
     imm0 = _mm256_slli_epi32(imm0, 29);
     /* get the polynom selection mask */
-    imm2 = _mm256_and_si256(imm2, *(v8si*)a2m_pi32_256_2);
-    imm2 = _mm256_cmpeq_epi32(imm2, *(v8si*)a2m_pi32_256_0);
+    imm2 = _mm256_and_si256(imm2, *(v8si*)a2m_pi256_2);
+    imm2 = _mm256_cmpeq_epi32(imm2, *(v8si*)a2m_pi256_0);
 
     v8sf sign_bit = (v8sf)imm0;
     v8sf poly_mask = (v8sf)imm2;
