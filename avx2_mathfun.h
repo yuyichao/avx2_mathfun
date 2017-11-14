@@ -79,8 +79,12 @@ void a2m_cisf(__m256 x, __m256 p[2]);
 __attribute__((always_inline)) static inline
 void a2m_storeu(__m256 *p, __m256 v)
 {
+#ifndef __clang__
     // GCC somehow lowers _mm256_storeu_ps to two stores of 16 bytes per 32bit register.
-    asm ("vmovups %0, %1": : "x"(v), "m"(*p));
+    *(__m256_u*)p = (__m256_u)v;
+#else
+    _mm256_storeu_ps((float*)p, v);
+#endif
 }
 
 // Convert a float x8 vector of real part and a float x8 vector of imaginary part
@@ -140,12 +144,12 @@ __attribute__((always_inline)) static inline void a2m_sincosf_(__m256 x, __m256 
     /* get the swap sign flag for the sine */
     imm0 = _mm256_and_si256(imm2, *(__m256i*)a2m_pi32_256_4);
     imm0 = _mm256_slli_epi32(imm0, 29);
-    __m256 swap_sign_bit_sin = _mm256_castsi256_ps(imm0);
+    __m256 swap_sign_bit_sin = (__m256)imm0;
 
     /* get the polynom selection mask for the sine*/
     imm2 = _mm256_and_si256(imm2, *(__m256i*)a2m_pi32_256_2);
     imm2 = _mm256_cmpeq_epi32(imm2, *(__m256i*)a2m_pi32_256_0);
-    __m256 poly_mask = _mm256_castsi256_ps(imm2);
+    __m256 poly_mask = (__m256)imm2;
 
     /* The magic pass: "Extended precision modular arithmetic"
        x = ((x - y * DP1) - y * DP2) - y * DP3; */
@@ -163,7 +167,7 @@ __attribute__((always_inline)) static inline void a2m_sincosf_(__m256 x, __m256 
     imm4 = _mm256_andnot_si256(imm4, *(__m256i*)a2m_pi32_256_4);
     imm4 = _mm256_slli_epi32(imm4, 29);
 
-    __m256 sign_bit_cos = _mm256_castsi256_ps(imm4);
+    __m256 sign_bit_cos = (__m256)imm4;
 
     sign_bit_sin = _mm256_xor_ps(sign_bit_sin, swap_sign_bit_sin);
 

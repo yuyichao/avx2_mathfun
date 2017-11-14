@@ -66,7 +66,7 @@ v8sf a2m_logf(v8sf x)
     x = _mm256_max_ps(x, *(v8sf*)a2m_ps256_min_norm_pos);  /* cut off denormalized stuff */
 
     // can be done with AVX2
-    imm0 = _mm256_srli_epi32(_mm256_castps_si256(x), 23);
+    imm0 = _mm256_srli_epi32((v8si)x, 23);
 
     /* keep only the fractional part */
     x = _mm256_and_ps(x, *(v8sf*)a2m_ps256_inv_mant_mask);
@@ -192,8 +192,7 @@ v8sf a2m_expf(v8sf x)
     // another two AVX2 instructions
     imm0 = _mm256_add_epi32(imm0, *(v8si*)a2m_pi32_256_0x7f);
     imm0 = _mm256_slli_epi32(imm0, 23);
-    v8sf pow2n = _mm256_castsi256_ps(imm0);
-    y = _mm256_mul_ps(y, pow2n);
+    y = _mm256_mul_ps(y, (v8sf)imm0);
     return y;
 }
 
@@ -247,8 +246,8 @@ v8sf a2m_sinf(v8sf x) // any x
     imm2 = _mm256_and_si256(imm2, *(v8si*)a2m_pi32_256_2);
     imm2 = _mm256_cmpeq_epi32(imm2,*(v8si*)a2m_pi32_256_0);
 
-    v8sf swap_sign_bit = _mm256_castsi256_ps(imm0);
-    v8sf poly_mask = _mm256_castsi256_ps(imm2);
+    v8sf swap_sign_bit = (v8sf)imm0;
+    v8sf poly_mask = (v8sf)imm2;
     sign_bit = _mm256_xor_ps(sign_bit, swap_sign_bit);
 
     /* The magic pass: "Extended precision modular arithmetic"
@@ -326,8 +325,8 @@ v8sf a2m_cosf(v8sf x) // any x
     imm2 = _mm256_and_si256(imm2, *(v8si*)a2m_pi32_256_2);
     imm2 = _mm256_cmpeq_epi32(imm2, *(v8si*)a2m_pi32_256_0);
 
-    v8sf sign_bit = _mm256_castsi256_ps(imm0);
-    v8sf poly_mask = _mm256_castsi256_ps(imm2);
+    v8sf sign_bit = (v8sf)imm0;
+    v8sf poly_mask = (v8sf)imm2;
 
     /* The magic pass: "Extended precision modular arithmetic"
        x = ((x - y * DP1) - y * DP2) - y * DP3; */
