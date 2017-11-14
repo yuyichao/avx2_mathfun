@@ -13,7 +13,9 @@ set(INSTALL_PKGCONFIG_DIR "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig"
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 # -ffast-math produces 20% faster code on skylake with GCC 7.2.0
-set(A2M_COMPILE_FLAGS "-mavx2 -mfma -ffast-math")
+# but it seems to produce less accurate results
+# (likely by folding the Extended precision modular arithmetic)
+set(A2M_COMPILE_FLAGS "-mavx2 -mfma -ffp-contract=fast")
 
 set(SOURCE_FILES avx2_mathfun.cpp)
 add_library(avx2_mathfun SHARED ${SOURCE_FILES})
