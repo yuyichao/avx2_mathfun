@@ -88,12 +88,7 @@ void a2m_cisf(__m256 x, __m256 p[2]);
 __attribute__((always_inline)) static inline
 void a2m_storeu(__m256 *p, __m256 v)
 {
-#ifndef __clang__
-    // GCC somehow lowers _mm256_storeu_ps to two stores of 16 bytes per 32bit register.
-    *(__m256_u*)p = (__m256_u)v;
-#else
     _mm256_storeu_ps((float*)p, v);
-#endif
 }
 
 // Convert a float x8 vector of real part and a float x8 vector of imaginary part
